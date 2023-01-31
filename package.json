@@ -5,7 +5,7 @@
     "license": "MIT",
     "scripts": {
         "start": "vite",
-        "build": "vite build"
+        "build": "tsc && vite build"
     },
     "dependencies": {
         "vite": "^4.0.4"
