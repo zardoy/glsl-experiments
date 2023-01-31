@@ -13,6 +13,8 @@ precision mediump float;
 uniform vec2 resolution;
 uniform float zoom;
 uniform vec2 move;
+uniform vec2 set;
+uniform bool is_set;
 void main(void) {
 	vec2 orig = gl_FragCoord.xy-resolution.xy/2.0;
 	orig.xy /= resolution.xy;
@@ -20,17 +22,27 @@ void main(void) {
 	orig.xy += move;
 	orig.x *= resolution.x / resolution.y;
 	vec2 buf = orig;
+	//set = orig;
+	// if (set)
+	// 	orig = set
 	float tt;
-	for (float iter = 0.0;iter != 128.0;iter++) {
-		float xtemp = buf.x * buf.x - buf.y * buf.y + orig.x;
-		buf.y = 2.0 * buf.x * buf.y + orig.y;
-		buf.x = xtemp;
+	for (float iter = 0.0;iter != 64.0;iter++) {
+		if (!is_set) {
+			float xtemp = buf.x * buf.x - buf.y * buf.y ;
+			buf.y = 2.0 * buf.x * buf.y + orig.y;
+			buf.x = xtemp+ orig.x;
+		} else {
+			float xtemp = buf.x * buf.x - buf.y * buf.y ;
+			buf.y = 2.0 * buf.x * buf.y + set.y;
+			buf.x = xtemp+ set.x;
+		}
 		tt = iter;
 		if (length(buf)>4.0)
 			break;
 	}
-	gl_FragColor = vec4(sin(tt),log2(buf), 1.0);
-	if (tt==127.0)
+
+	gl_FragColor = vec4(0.0,0.0,tt/64.0, 1.0);
+	if (tt==63.0)
 		gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
 
 }

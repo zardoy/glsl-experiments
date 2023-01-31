@@ -7,6 +7,9 @@ let delta = 1.001
 let initialPan = [0, 0]
 let pan = [0, 0]
 let mousePressed = 0
+
+const sliders = document.querySelector('#sliders')!
+
 function to_map(point: number[]) {
     let buf = [...point]
     buf[0] -= resolution[0] / 2
@@ -108,6 +111,27 @@ const setupCanvas = (canvas: HTMLCanvasElement) => {
     gl.clearColor(0, 0, 0.5, 1)
     gl.clear(gl.COLOR_BUFFER_BIT)
     gl.uniform1f(gl.getUniformLocation(shaderProgram, 'zoom'), zoom)
+
+    const additionalSet = [0, 0]
+    gl.uniform1f(gl.getUniformLocation(shaderProgram, 'is_set'), 0)
+    const watchSlider = (elem, callback) => {
+        const update = () => {
+            callback(elem.value)
+        }
+        elem.addEventListener('input', update)
+    }
+    const updateSet = () => {
+        gl.uniform1f(gl.getUniformLocation(shaderProgram, 'is_set'), 1)
+        gl.uniform2f(gl.getUniformLocation(shaderProgram, 'set'), additionalSet[0], additionalSet[1])
+    }
+    watchSlider(sliders.children[0], value => {
+        additionalSet[0] = parseFloat(value)
+        updateSet()
+    })
+    watchSlider(sliders.children[1], value => {
+        additionalSet[1] = parseFloat(value)
+        updateSet()
+    })
 
     const updateMoveUniform = () => {
         gl.uniform2f(gl.getUniformLocation(shaderProgram, 'move'), offset[0], offset[1])
@@ -296,3 +320,13 @@ const setupCanvas = (canvas: HTMLCanvasElement) => {
 
 const canvas: HTMLCanvasElement = document.querySelector('canvas#canvas')!
 setupCanvas(canvas)
+
+sliders.addEventListener('pointerdown', e => {
+    e.stopPropagation()
+})
+sliders.addEventListener('pointermove', e => {
+    e.stopPropagation()
+})
+sliders.addEventListener('pointerup', e => {
+    e.stopPropagation()
+})
