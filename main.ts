@@ -128,16 +128,23 @@ const setupCanvas = (canvas: HTMLCanvasElement) => {
         window.addEventListener(
             type as any,
             e => {
-                const clonedEv = Object.create(null)
-                for (const [key, value] of Object.entries(e)) {
-                    if (typeof value === 'function') clonedEv[key] = value.bind(e)
-                    clonedEv[key] = value
-                }
+                // const clonedEv = Object.create(null)
+                // for (const [key, value] of Object.entries(e)) {
+                //     if (typeof value === 'function') {
+                //         clonedEv[key] = value.bind(e)
+                //         continue
+                //     }
+                //     clonedEv[key] = value
+                //     if ((key === 'clientX' || key === 'clientY') && typeof value === 'number') clonedEv[key] = value * upscaleResolution
+                // }
                 handler({
-                    ...clonedEv,
+                    preventDefault() {
+                        e.preventDefault()
+                    },
                     clientX: e.clientX * upscaleResolution,
                     clientY: e.clientY * upscaleResolution,
-                })
+                    deltaY: e.deltaY,
+                } as any)
             },
             options,
         )
