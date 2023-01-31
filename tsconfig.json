@@ -1,0 +1,15 @@
+{
+    "extends": "@zardoy/tsconfig/tsconfig",
+    "compilerOptions": {
+        "noUncheckedIndexedAccess": false,
+        "lib": [
+            "DOM",
+            "DOM.Iterable",
+            "ESNext"
+        ]
+    },
+    "include": [
+        "global.d.ts",
+        "main.ts"
+    ]
+}
