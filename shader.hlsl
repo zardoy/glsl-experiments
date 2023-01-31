@@ -41,7 +41,7 @@ void main(void) {
 			break;
 	}
 
-	gl_FragColor = vec4(0.0,0.0,tt/64.0, 1.0);
+	gl_FragColor = vec4(buf,tt/32.0, 1.0);
 	if (tt==63.0)
 		gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
 
