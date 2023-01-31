@@ -164,11 +164,21 @@ const setupCanvas = (canvas: HTMLCanvasElement) => {
             passive: false,
         },
     )
+    window.addEventListener(
+        'scroll',
+        e => {
+            e.preventDefault()
+            updateZoom(window.scrollY, canvas.width / 2, canvas.height / 2)
+        },
+        {
+            passive: false,
+        },
+    )
 
     const evCache: PointerEvent[] = []
     const pointerDownHandler = (e: PointerEvent) => {
         if (evCache.length > 1) return // ignore move when pinch zoom
-        console.log('down')
+        // console.log('down')
         mousePressed = 1
         initialPan = [e.clientX, e.clientY]
         pan = [0, 0]
@@ -177,7 +187,7 @@ const setupCanvas = (canvas: HTMLCanvasElement) => {
     }
     const pointerUpHandler = (e: PointerEvent) => {
         if (!mousePressed) return
-        console.log('up', pan, mousePressed)
+        // console.log('up', pan, mousePressed)
         pan = to_map(pan)
         offset[0] += pan[0]
         offset[1] -= pan[1]
