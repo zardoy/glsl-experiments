@@ -125,7 +125,7 @@ const setupCanvas = (canvas: HTMLCanvasElement) => {
         updateStat('zoom', zoom)
     }
     const fixedAddEventListener = (type: keyof GlobalEventHandlersEventMap, handler: (e: PointerEvent) => void, options = {}) => {
-        window.addEventListener(
+        canvas.addEventListener(
             type as any,
             e => {
                 // const clonedEv = Object.create(null)
@@ -164,11 +164,20 @@ const setupCanvas = (canvas: HTMLCanvasElement) => {
             passive: false,
         },
     )
+    let lockScroll = false
     window.addEventListener(
         'scroll',
         e => {
-            e.preventDefault()
-            updateZoom(window.scrollY, canvas.width / 2, canvas.height / 2)
+            if (lockScroll) {
+                // window.scrollTo(0, 500)
+                updateZoom(window.scrollY, canvas.width / 2, canvas.height / 2)
+                e.preventDefault()
+                return
+            }
+            if (window.scrollY > 500) {
+                canvas.style.position = 'fixed'
+                lockScroll = true
+            }
         },
         {
             passive: false,
@@ -296,3 +305,9 @@ const setupCanvas = (canvas: HTMLCanvasElement) => {
 
 const canvas: HTMLCanvasElement = document.querySelector('canvas#canvas')!
 setupCanvas(canvas)
+
+window.addEventListener('load', e => {
+    setTimeout(() => {
+        window.scrollTo(0, 0)
+    }, 50)
+})
