@@ -61,7 +61,7 @@ const updateStat = (name: string, value: string | number) => {
 }
 
 const setupCanvas = (canvas: HTMLCanvasElement) => {
-    const downgradeResolution = 1
+    const upscaleResolution = window.devicePixelRatio
 
     const gl = canvas.getContext('webgl2', {
         // doesn't switch the gpu on Windows https://github.com/emscripten-core/emscripten/issues/10000#issuecomment-749167911
@@ -73,8 +73,8 @@ const setupCanvas = (canvas: HTMLCanvasElement) => {
     }
 
     const resize = () => {
-        canvas.width = window.innerWidth / downgradeResolution
-        canvas.height = window.innerHeight / downgradeResolution
+        canvas.width = window.innerWidth * upscaleResolution
+        canvas.height = window.innerHeight * upscaleResolution
         resolution[0] = canvas.width
         resolution[1] = canvas.height
     }
@@ -124,13 +124,32 @@ const setupCanvas = (canvas: HTMLCanvasElement) => {
         updateMoveUniform()
         updateStat('zoom', zoom)
     }
-    window.addEventListener('dblclick', e => {
-        updateZoom(zoom + 0.5, e.clientX, e.clientY)
-    })
-    window.addEventListener(
+    const fixedAddEventListener = (type: keyof GlobalEventHandlersEventMap, handler: (e: PointerEvent) => void, options = {}) => {
+        window.addEventListener(
+            type as any,
+            e => {
+                const clonedEv = Object.create(null)
+                for (const [key, value] of Object.entries(e)) {
+                    if (typeof value === 'function') clonedEv[key] = value.bind(e)
+                    clonedEv[key] = value
+                }
+                handler({
+                    ...clonedEv,
+                    clientX: e.clientX * upscaleResolution,
+                    clientY: e.clientY * upscaleResolution,
+                })
+            },
+            options,
+        )
+    }
+
+    // fixedAddEventListener('dblclick', e => {
+    //     updateZoom(zoom, e.clientX, e.clientY)
+    // })
+    fixedAddEventListener(
         'wheel',
         e => {
-            const { deltaY, clientX, clientY } = e
+            const { deltaY, clientX, clientY } = e as any
             updateZoom(deltaY, clientX, clientY)
             e.preventDefault()
         },
@@ -142,18 +161,31 @@ const setupCanvas = (canvas: HTMLCanvasElement) => {
     const evCache: PointerEvent[] = []
     const pointerDownHandler = (e: PointerEvent) => {
         if (evCache.length > 1) return // ignore move when pinch zoom
-        mousePressed = 1
-        initialPan = [e.clientX, e.clientY]
-    }
-    window.addEventListener('pointerdown', e => {
-        if (evCache.length > 1) return // ignore move when pinch zoom
+        console.log('down')
         mousePressed = 1
         initialPan = [e.clientX, e.clientY]
         pan = [0, 0]
         pan[0] += resolution[0] / 2
         pan[1] += resolution[1] / 2
+    }
+    const pointerUpHandler = (e: PointerEvent) => {
+        if (!mousePressed) return
+        console.log('up', pan, mousePressed)
+        pan = to_map(pan)
+        offset[0] += pan[0]
+        offset[1] -= pan[1]
+        mousePressed = 0
+        updateMoveUniform()
+    }
+    fixedAddEventListener('pointerdown', e => {
+        if (evCache.length > 1) {
+            pointerUpHandler(e)
+            return
+        }
+        pointerDownHandler(e)
+        e.preventDefault()
     })
-    window.addEventListener('pointermove', e => {
+    fixedAddEventListener('pointermove', e => {
         if (evCache.length > 1) return // ignore move when pinch zoom
         if (!mousePressed) return
         pan = [initialPan[0] - e.clientX, initialPan[1] - e.clientY]
@@ -164,18 +196,15 @@ const setupCanvas = (canvas: HTMLCanvasElement) => {
         //offset[1] += buf[1]
         gl.uniform2f(gl.getUniformLocation(shaderProgram, 'move'), offset[0] + buf[0], offset[1] - buf[1])
     })
-    window.addEventListener('pointerup', e => {
-        if (evCache.length > 0) return
-        if (!mousePressed) {
-            pointerDownHandler(e)
+    fixedAddEventListener('pointerup', e => {
+        if (evCache.length === 0) {
+            if (mousePressed) pointerUpHandler(e)
             return
         }
-        console.log('up', pan)
-        pan = to_map(pan)
-        offset[0] += pan[0]
-        offset[1] -= pan[1]
-        mousePressed = 0
-        updateMoveUniform()
+        // if (!mousePressed) {
+        //     pointerDownHandler(e)
+        //     return
+        // }
     })
 
     const renderFrame = () => {
@@ -213,14 +242,13 @@ const setupCanvas = (canvas: HTMLCanvasElement) => {
 
             // If two pointers are down, check for pinch gestures
             if (evCache.length === 2) {
-                // Calculate the distance between the two pointers
                 const curDiff = Math.hypot(evCache[0].clientX - evCache[1].clientX, evCache[0].clientY - evCache[1].clientY)
 
                 const clientX = (evCache[0].clientX + evCache[1].clientX) / 2
                 const clientY = (evCache[0].clientY + evCache[1].clientY) / 2
                 if (prevDiff > 0) {
                     const factor = curDiff - prevDiff
-                    updateZoom(-factor, clientX, clientY)
+                    updateZoom(-factor, clientX * upscaleResolution, clientY * upscaleResolution)
                 }
 
                 // Cache the distance for the next move event

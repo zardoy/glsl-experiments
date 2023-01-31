@@ -21,16 +21,16 @@ void main(void) {
 	orig.x *= resolution.x / resolution.y;
 	vec2 buf = orig;
 	float tt;
-	for (float iter = 0.0;iter != 256.0;iter++) {
+	for (float iter = 0.0;iter != 128.0;iter++) {
 		float xtemp = buf.x * buf.x - buf.y * buf.y + orig.x;
 		buf.y = 2.0 * buf.x * buf.y + orig.y;
 		buf.x = xtemp;
 		tt = iter;
-		if (length(buf)>2.0)
+		if (length(buf)>4.0)
 			break;
 	}
-	gl_FragColor = vec4(tt/255.0,log2(buf), 1.0);
-	if (tt==255.0)
+	gl_FragColor = vec4(sin(tt),log2(buf), 1.0);
+	if (tt==127.0)
 		gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
 
 }
