@@ -1,12 +1,12 @@
 import fragmentShader from './shader.hlsl?raw'
 
-let resolution = [1920, 1080]
+let resolution: [number, number] = [] as any
 let zoom: number = 0.2
 let offset = [0, 0]
 let delta = 1.001
-let pan_o = [0, 0]
+let initialPan = [0, 0]
 let pan = [0, 0]
-let is_button = 0
+let mousePressed = 0
 function to_map(point: number[]) {
     let buf = [...point]
     buf[0] -= resolution[0] / 2
@@ -20,7 +20,7 @@ function to_map(point: number[]) {
 
 const glsl = x => x
 
-export const createProgram = (gl: WebGL2RenderingContext, vertexShader: string, fragmentShader: string) => {
+const createProgram = (gl: WebGL2RenderingContext, vertexShader: string, fragmentShader: string) => {
     const createShader = (gl: WebGL2RenderingContext, type: number, source: string) => {
         const shader = gl.createShader(type)!
         gl.shaderSource(shader, source)
@@ -108,6 +108,10 @@ const setupCanvas = (canvas: HTMLCanvasElement) => {
     gl.clearColor(0, 0, 0.5, 1)
     gl.clear(gl.COLOR_BUFFER_BIT)
     gl.uniform1f(gl.getUniformLocation(shaderProgram, 'zoom'), zoom)
+
+    const updateMoveUniform = () => {
+        gl.uniform2f(gl.getUniformLocation(shaderProgram, 'move'), offset[0], offset[1])
+    }
     const updateZoom = (factor: number, x: number, y: number) => {
         const buf = to_map([x, y])
         if (factor > 0) zoom /= 1 + factor / 250
@@ -117,8 +121,12 @@ const setupCanvas = (canvas: HTMLCanvasElement) => {
         offset[0] += buf[0] - buf1[0]
         offset[1] -= buf[1] - buf1[1]
         gl.uniform1f(gl.getUniformLocation(shaderProgram, 'zoom'), zoom)
+        updateMoveUniform()
         updateStat('zoom', zoom)
     }
+    window.addEventListener('dblclick', e => {
+        updateZoom(zoom + 0.5, e.clientX, e.clientY)
+    })
     window.addEventListener(
         'wheel',
         e => {
@@ -130,33 +138,50 @@ const setupCanvas = (canvas: HTMLCanvasElement) => {
             passive: false,
         },
     )
-    window.addEventListener('pointermove', e => {
-        if (!is_button) return
-        pan = [pan_o[0] - e.clientX, pan_o[1] - e.clientY]
+
+    const evCache: PointerEvent[] = []
+    const pointerDownHandler = (e: PointerEvent) => {
+        if (evCache.length > 1) return // ignore move when pinch zoom
+        mousePressed = 1
+        initialPan = [e.clientX, e.clientY]
+    }
+    window.addEventListener('pointerdown', e => {
+        if (evCache.length > 1) return // ignore move when pinch zoom
+        mousePressed = 1
+        initialPan = [e.clientX, e.clientY]
+        pan = [0, 0]
         pan[0] += resolution[0] / 2
         pan[1] += resolution[1] / 2
-        pan = to_map(pan)
-        gl.uniform2f(gl.getUniformLocation(shaderProgram, 'move'), offset[0] + pan[0], offset[1] - pan[1])
+    })
+    window.addEventListener('pointermove', e => {
+        if (evCache.length > 1) return // ignore move when pinch zoom
+        if (!mousePressed) return
+        pan = [initialPan[0] - e.clientX, initialPan[1] - e.clientY]
+        pan[0] += resolution[0] / 2
+        pan[1] += resolution[1] / 2
+        let buf = to_map(pan)
+        //offset[0] += buf[0]
+        //offset[1] += buf[1]
+        gl.uniform2f(gl.getUniformLocation(shaderProgram, 'move'), offset[0] + buf[0], offset[1] - buf[1])
     })
     window.addEventListener('pointerup', e => {
-        pan[0] += resolution[0] / 2
-        pan[1] += resolution[1] / 2
+        if (evCache.length > 0) return
+        if (!mousePressed) {
+            pointerDownHandler(e)
+            return
+        }
+        console.log('up', pan)
         pan = to_map(pan)
         offset[0] += pan[0]
-        offset[1] += pan[1]
-        is_button = 0
-        gl.uniform2f(gl.getUniformLocation(shaderProgram, 'move'), offset[0], offset[1])
-    })
-
-    window.addEventListener('pointerdown', e => {
-        is_button = 1
-        pan_o = [e.clientY, e.clientX]
+        offset[1] -= pan[1]
+        mousePressed = 0
+        updateMoveUniform()
     })
 
     const renderFrame = () => {
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
         gl.uniform2f(gl.getUniformLocation(shaderProgram, 'resolution'), resolution[0], resolution[1])
-        gl.uniform2f(gl.getUniformLocation(shaderProgram, 'move'), offset[0], offset[1])
+        //gl.uniform2f(gl.getUniformLocation(shaderProgram, 'move'), offset[0], offset[1])
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1.0, -1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0]), gl.STATIC_DRAW)
         gl.drawArrays(gl.TRIANGLES, 0, 6)
     }
@@ -177,7 +202,6 @@ const setupCanvas = (canvas: HTMLCanvasElement) => {
 
     function initPointerEvents(el: HTMLElement) {
         // Install event handlers for the pointer target
-        const evCache: any[] = []
         let prevDiff = -1
         el.onpointerdown = ev => {
             evCache.push(ev)

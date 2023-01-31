@@ -7,9 +7,9 @@
 //     gl_FragColor = u_color;
 // }
 #version 100
-#ifdef GL_ES
+//#ifdef GL_ES
 precision mediump float;
-#endif
+//#endif
 uniform vec2 resolution;
 uniform float zoom;
 uniform vec2 move;
@@ -29,8 +29,8 @@ void main(void) {
 		if (length(buf)>2.0)
 			break;
 	}
-	gl_FragColor = vec4(tt/255.0,0.0, 0.0, 1.0);
+	gl_FragColor = vec4(tt/255.0,log2(buf), 1.0);
 	if (tt==255.0)
-		gl_FragColor = vec4(0.5, 1.0, 0.5, 1.0);
+		gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
 
 }
